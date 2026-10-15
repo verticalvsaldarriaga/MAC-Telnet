@@ -675,7 +675,10 @@ int main (int argc, char **argv) {
 		if (!quiet_mode) {
 			printf(_("Login: "));
 		}
-		scanf("%254s", username);
+		if (scanf("%254s", username) != 1) {
+			fprintf(stderr, _("No username given.\n"));
+			exit(1);
+		}
 	}
 
 	if (!tunnel_conn && !have_password) {

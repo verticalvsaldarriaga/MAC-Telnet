@@ -474,7 +474,9 @@ static void user_login(struct mt_connection *curconn, struct mt_mactelnet_hdr *p
 		}
 
 		/* Change the owner of the slave pts */
-		chown(slavename, user->pw_uid, user->pw_gid);
+		if (chown(slavename, user->pw_uid, user->pw_gid) != 0) {
+			syslog(LOG_WARNING, _("(%d) Unable to change owner of %s."), curconn->seskey, slavename);
+		}
 
 		curconn->slavefd = open(slavename, O_RDWR);
 		if (curconn->slavefd == -1) {
@@ -516,12 +518,9 @@ static void user_login(struct mt_connection *curconn, struct mt_mactelnet_hdr *p
 			close(curconn->ptsfd);
 			
 			/* Redirect STDIN/STDIO/STDERR */
-			close(0);
-			dup(curconn->slavefd);
-			close(1);
-			dup(curconn->slavefd);
-			close(2);
-			dup(curconn->slavefd);
+			dup2(curconn->slavefd, 0);
+			dup2(curconn->slavefd, 1);
+			dup2(curconn->slavefd, 2);
 
 			/* Set controlling terminal */
 			ioctl(0, TIOCSCTTY, 1);
@@ -548,7 +547,11 @@ static void user_login(struct mt_connection *curconn, struct mt_mactelnet_hdr *p
 			/* Display MOTD */
 			display_motd();
 
-			chdir(user->pw_dir);
+			if (chdir(user->pw_dir) != 0) {
+				if (chdir("/") != 0) {
+					exit(1);
+				}
+			}
 
 			/* Spawn shell */
 			/* TODO: Maybe use "login -f USER" instead? renders motd and executes shell correctly for system */
@@ -680,7 +683,9 @@ static void handle_data_packet(struct mt_connection *curconn, struct mt_mactelne
 
 			/* relay data from client to shell */
 			if (!tunnel_conn && curconn->state == STATE_ACTIVE && curconn->ptsfd != -1) {
-				write(curconn->ptsfd, cpkt.data, cpkt.length);
+				if (write(curconn->ptsfd, cpkt.data, cpkt.length) < 0) {
+					/* Shell side is gone; the read side handles teardown */
+				}
 			}
 			if (tunnel_conn && curconn->state == STATE_ACTIVE && curconn->fwdfd != -1) {
 				if (send(curconn->fwdfd, cpkt.data, cpkt.length, 0) <= 0) {
@@ -845,8 +850,8 @@ static void daemonize() {
 	close(2);
 	
 	fd = open("/dev/null",O_RDWR);
-	dup(fd);
-	dup(fd);
+	dup2(fd, 1);
+	dup2(fd, 2);
 }
 
 static void print_version() {
