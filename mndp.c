@@ -25,6 +25,7 @@
 #include <arpa/inet.h>
 #include <netinet/ether.h>
 #include <string.h>
+#include "sigutil.h"
 #include "protocol.h"
 #include "config.h"
 
@@ -55,7 +56,7 @@ int mndp(int timeout, int batch_mode)  {
 #ifdef FROM_MACTELNET
 	/* mactelnet.c has this set to 1 */
 	mt_direction_fromserver = 0;
-	signal(SIGALRM, sig_alarm);
+	set_signal(SIGALRM, sig_alarm);
 #endif
 
 	setlocale(LC_ALL, "");

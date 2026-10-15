@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <float.h>
+#include "sigutil.h"
 #include "protocol.h"
 #include "interfaces.h"
 #include "config.h"
@@ -223,7 +224,7 @@ int main(int argc, char **argv)  {
 		ping_size = sizeof(struct timeval);
 	}
 
-	signal(SIGINT, display_results);
+	set_signal(SIGINT, display_results);
 
 	for (i = 0; i < send_packets || send_packets == 0; ++i) {
 		fd_set read_fds;

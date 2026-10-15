@@ -42,6 +42,7 @@
 #include <linux/if_ether.h>
 #endif
 #include <libgen.h>
+#include "sigutil.h"
 #include "md5.h"
 #include "protocol.h"
 #include "console.h"
@@ -243,7 +244,7 @@ static void sig_winch(int sig) {
 	}
 
 	/* reinstate signal handler */
-	signal(SIGWINCH, sig_winch);
+	set_signal(SIGWINCH, sig_winch);
 }
 
 static int handle_packet(unsigned char *data, int data_len) {
@@ -327,7 +328,7 @@ static int handle_packet(unsigned char *data, int data_len) {
 					setvbuf(stdin,  (char*)NULL, _IONBF, 0);
 
 					/* Add resize signal handler */
-					signal(SIGWINCH, sig_winch);
+					set_signal(SIGWINCH, sig_winch);
 				}
 			}
 			else if (tunnel_conn && cpkt.cptype == MT_CPTYPE_END_AUTH) {
@@ -691,7 +692,7 @@ int main (int argc, char **argv) {
 
 	if (tunnel_conn) {
 		/* Setup signal handler for broken tunnels. */
-		signal(SIGPIPE,SIG_IGN);
+		set_signal(SIGPIPE,SIG_IGN);
 
 		/* Setup Server socket for receiving connection from local SSH Client. */
 		int fwdsrvfd;

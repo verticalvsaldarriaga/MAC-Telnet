@@ -22,6 +22,7 @@
 */
 #define _XOPEN_SOURCE 600
 #define _DEFAULT_SOURCE
+#define _GNU_SOURCE
 #include <libintl.h>
 #include <locale.h>
 #include <stdlib.h>
@@ -50,9 +51,11 @@
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <pwd.h>
-#include <utmp.h>
+#include <utmpx.h>
+#include <paths.h>
 #include <syslog.h>
 #include <sys/utsname.h>
+#include "sigutil.h"
 #include "md5.h"
 #include "protocol.h"
 #include "console.h"
@@ -136,6 +139,12 @@ struct mt_connection {
 
 	struct mt_connection *next;
 };
+
+#ifdef WTMPX_FILE
+#define WTMPX_PATH WTMPX_FILE
+#else
+#define WTMPX_PATH _PATH_WTMP
+#endif
 
 static void uwtmp_login(struct mt_connection *);
 static void uwtmp_logout(struct mt_connection *);
@@ -321,12 +330,16 @@ static void display_nologin() {
 }
 
 static void uwtmp_login(struct mt_connection *conn) {
-	struct utmp utent;
+	struct utmpx utent;
 	pid_t pid;
+	char *line;
 
 	pid = getpid();
-	
-	char *line = ttyname(conn->slavefd);
+
+	line = ttyname(conn->slavefd);
+	if (line == NULL) {
+		return;
+	}
 	if (strncmp(line, "/dev/", 5) == 0) {
 		line += 5;
 	}
@@ -337,24 +350,26 @@ static void uwtmp_login(struct mt_connection *conn) {
 	utent.ut_pid = pid;
 	strncpy(utent.ut_user, conn->username, sizeof(utent.ut_user));
 	strncpy(utent.ut_line, line, sizeof(utent.ut_line));
-	strncpy(utent.ut_id, utent.ut_line + 3, sizeof(utent.ut_id));
+	if (strlen(line) > 3) {
+		strncpy(utent.ut_id, line + 3, sizeof(utent.ut_id));
+	}
 	strncpy(utent.ut_host, ether_ntoa((const struct ether_addr *)conn->srcmac), sizeof(utent.ut_host));
-	time((time_t *)&(utent.ut_time));
+	utent.ut_tv.tv_sec = time(NULL);
 	
 	/* Update utmp and/or wtmp */
-	setutent();
-	pututline(&utent);
-	endutent();
-	updwtmp(_PATH_WTMP, &utent);
+	setutxent();
+	pututxline(&utent);
+	endutxent();
+	updwtmpx(WTMPX_PATH, &utent);
 }
 
 static void uwtmp_logout(struct mt_connection *conn) {
 	if (conn->pid > 0) {
-		struct utmp *utentp;
-		struct utmp utent;
-		setutent();
+		struct utmpx *utentp;
+		struct utmpx utent;
+		setutxent();
 
-		while ((utentp = getutent()) != NULL) {
+		while ((utentp = getutxent()) != NULL) {
 			if (utentp->ut_pid == conn->pid && utentp->ut_id[0]) {
 				break;
 			}
@@ -366,10 +381,10 @@ static void uwtmp_logout(struct mt_connection *conn) {
 			utent.ut_type = DEAD_PROCESS;
 			utent.ut_tv.tv_sec = time(NULL);
 
-			pututline(&utent);
-			endutent();
-			updwtmp(_PATH_WTMP, &utent);
+			pututxline(&utent);
+			updwtmpx(WTMPX_PATH, &utent);
 		}
+		endutxent();
 	}
 }
 
@@ -1137,13 +1152,13 @@ int main (int argc, char **argv) {
 	}
 
 	/* Handle zombies etc */
-	signal(SIGCHLD,SIG_IGN);
-	signal(SIGTSTP,SIG_IGN);
-	signal(SIGTTOU,SIG_IGN);
-	signal(SIGTTIN,SIG_IGN);
-	signal(SIGPIPE,SIG_IGN);
-	signal(SIGHUP, sighup_handler);
-	signal(SIGTERM, sigterm_handler);
+	set_signal(SIGCHLD,SIG_IGN);
+	set_signal(SIGTSTP,SIG_IGN);
+	set_signal(SIGTTOU,SIG_IGN);
+	set_signal(SIGTTIN,SIG_IGN);
+	set_signal(SIGPIPE,SIG_IGN);
+	set_signal(SIGHUP, sighup_handler);
+	set_signal(SIGTERM, sigterm_handler);
 
 	for (i = 0; i < MAX_INTERFACES; ++i) {
 		if (interfaces[i].in_use && interfaces[i].has_mac) {
