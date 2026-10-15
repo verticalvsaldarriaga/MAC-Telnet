@@ -144,7 +144,7 @@ static struct mt_connection *connections_head = NULL;
 
 static void list_add_connection(struct mt_connection *conn) {
 	struct mt_connection *p;
-	struct mt_connection *last;
+	struct mt_connection *last = NULL;
 	if (connections_head == NULL) {
 		connections_head = conn;
 		connections_head->next = NULL;
@@ -157,7 +157,7 @@ static void list_add_connection(struct mt_connection *conn) {
 
 static void list_remove_connection(struct mt_connection *conn) {
 	struct mt_connection *p;
-	struct mt_connection *last;
+	struct mt_connection *last = NULL;
 	if (connections_head == NULL) {
 		return;
 	}
@@ -390,6 +390,7 @@ static void user_login(struct mt_connection *curconn, struct mt_mactelnet_hdr *p
 	struct mt_packet pdata;
 	unsigned char md5sum[17];
 	char md5data[100];
+	size_t plen;
 	struct mt_credentials *user;
 	char *slavename;
 
@@ -400,12 +401,13 @@ static void user_login(struct mt_connection *curconn, struct mt_mactelnet_hdr *p
 		md5_state_t state;
 		/* Concat string of 0 + password + encryptionkey */
 		md5data[0] = 0;
-		strncpy(md5data + 1, user->password, 82);
-		memcpy(md5data + 1 + strlen(user->password), curconn->enckey, 16);
+		plen = strnlen(user->password, 82);
+		memcpy(md5data + 1, user->password, plen);
+		memcpy(md5data + 1 + plen, curconn->enckey, 16);
 
 		/* Generate md5 sum of md5data with a leading 0 */
 		md5_init(&state);
-		md5_append(&state, (const md5_byte_t *)md5data, strlen(user->password) + 17);
+		md5_append(&state, (const md5_byte_t *)md5data, plen + 17);
 		md5_finish(&state, (md5_byte_t *)md5sum + 1);
 		md5sum[0] = 0;
 
@@ -716,7 +718,7 @@ static void handle_packet(unsigned char *data, int data_len, const struct sockad
 			init_pongpacket(&pdata, (unsigned char *)&(pkthdr.dstaddr), (unsigned char *)&(pkthdr.srcaddr));
 			add_packetdata(&pdata, pkthdr.data - 4, data_len - (MT_HEADER_LEN - 4));
 			{
-				if (index >= 0) {
+				if (interface_index >= 0) {
 					send_special_udp(&interfaces[interface_index], MT_MACTELNET_PORT, &pdata);
 				}
 			}

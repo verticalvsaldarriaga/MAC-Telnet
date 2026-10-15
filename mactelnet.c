@@ -188,19 +188,20 @@ static void send_auth(char *username, char *password) {
 	unsigned short height = 0;
 	char *terminal = getenv("TERM");
 	char md5data[100];
+	size_t pwlen;
 	unsigned char md5sum[17];
 	int plen;
 	md5_state_t state;
 
 	/* Concat string of 0 + password + encryptionkey */
 	md5data[0] = 0;
-	strncpy(md5data + 1, password, 82);
-	md5data[83] = '\0';
-	memcpy(md5data + 1 + strlen(password), encryptionkey, 16);
+	pwlen = strnlen(password, 82);
+	memcpy(md5data + 1, password, pwlen);
+	memcpy(md5data + 1 + pwlen, encryptionkey, 16);
 
 	/* Generate md5 sum of md5data with a leading 0 */
 	md5_init(&state);
-	md5_append(&state, (const md5_byte_t *)md5data, strlen(password) + 17);
+	md5_append(&state, (const md5_byte_t *)md5data, pwlen + 17);
 	md5_finish(&state, (md5_byte_t *)md5sum + 1);
 	md5sum[0] = 0;
 
@@ -545,6 +546,7 @@ int main (int argc, char **argv) {
 
 			case 'B':
 				batch_mode = 1;
+				break;
 
 			case 'h':
 			case '?':
@@ -603,7 +605,7 @@ int main (int argc, char **argv) {
 		if (have_username) {
 			ssh_argc += 2;  /* Login name option: -l <user> */
 		}
-		ssh_argv = (char **) calloc(sizeof(char *), ssh_argc + 1);
+		ssh_argv = (char **) calloc(ssh_argc + 1, sizeof(char *));
 		char *ssh_path_c = strndup(ssh_path, sizeof(ssh_path) - 1);
 		char *ssh_filename = basename(ssh_path_c);
 		int idx = 0;

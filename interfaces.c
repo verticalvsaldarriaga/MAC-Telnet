@@ -103,7 +103,8 @@ static int get_device_index(char *device_name) {
 	tmpsock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
 	/* Find interface index from device_name */
-	strncpy(ifr.ifr_name, device_name, 16);
+	strncpy(ifr.ifr_name, device_name, sizeof(ifr.ifr_name) - 1);
+	ifr.ifr_name[sizeof(ifr.ifr_name) - 1] = 0;
 	if (ioctl(tmpsock, SIOCGIFINDEX, &ifr) != 0) {
 		return -1;
 	}

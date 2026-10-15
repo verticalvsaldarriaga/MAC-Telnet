@@ -56,8 +56,8 @@ void read_userfile() {
 		if (user[0] == '#')
 			continue;
 
-		memcpy(mt_users[i].username, user, strlen(user) < MT_CRED_LEN - 1? strlen(user) : MT_CRED_LEN);
-		memcpy(mt_users[i++].password, password, strlen(password)  < MT_CRED_LEN - 1? strlen(password)  : MT_CRED_LEN);
+		snprintf(mt_users[i].username, MT_CRED_LEN, "%s", user);
+		snprintf(mt_users[i++].password, MT_CRED_LEN, "%s", password);
 
 		if (i == MT_CRED_MAXNUM)
 			break;

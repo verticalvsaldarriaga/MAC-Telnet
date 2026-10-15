@@ -1,5 +1,6 @@
 
 CC?=gcc
+CFLAGS?=-O2 -std=gnu11 -Wextra -Wno-unused-parameter
 
 # Run this with make LIBS=-lrt if you want to compile on kfreebsd
 
