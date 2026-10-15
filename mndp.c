@@ -124,19 +124,19 @@ int mndp(int timeout, int batch_mode)  {
 		if (packet != NULL && !batch_mode) {
 			/* Print it */
 			printf("%-17s %s", ether_ntoa((struct ether_addr *)packet->address), packet->identity);
-			if (packet->platform != NULL) {
+			if (packet->platform[0] != 0) {
 				printf(" (%s %s %s)", packet->platform, packet->version, packet->hardware);
 			}
-			if (packet->softid !=NULL) {
+			if (packet->softid[0] != 0) {
 				printf("  %s", packet->softid);
 			}
 			if (packet->uptime > 0) {
 				printf(_("  up %d days %d hours"), packet->uptime / 86400, packet->uptime % 86400 / 3600);
 			}
-			if (packet->softid != NULL) {
+			if (packet->softid[0] != 0) {
 				printf("  %s", packet->softid);
 			}
-			if (packet->ifname != NULL) {
+			if (packet->ifname[0] != 0) {
 				printf(" %s", packet->ifname);
 			}
 			putchar('\n');

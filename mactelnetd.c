@@ -21,7 +21,7 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #define _XOPEN_SOURCE 600
-#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #include <libintl.h>
 #include <locale.h>
 #include <stdlib.h>
@@ -355,7 +355,7 @@ static void uwtmp_logout(struct mt_connection *conn) {
 		setutent();
 
 		while ((utentp = getutent()) != NULL) {
-			if (utentp->ut_pid == conn->pid && utentp->ut_id) {
+			if (utentp->ut_pid == conn->pid && utentp->ut_id[0]) {
 				break;
 			}
 		}
@@ -891,7 +891,7 @@ void mndp_broadcast() {
 	}
 }
 
-void sigterm_handler() {
+void sigterm_handler(int signum) {
 	struct mt_connection *p;
 	struct mt_packet pdata;
 	/*_ Please include both \r and \n in translation, this is needed for the terminal emulator. */
@@ -924,7 +924,7 @@ void sigterm_handler() {
 	exit(0);
 }
 
-void sighup_handler() {
+void sighup_handler(int signum) {
 	int i;
 	struct mt_connection *p;
 
@@ -947,7 +947,7 @@ void sighup_handler() {
 
 	/* Reassign outgoing interfaces to connections again, since they may have changed */
 	for (p = connections_head; p != NULL; p = p->next) {
-		if (p->interface_name != NULL) {
+		if (p->interface_name[0] != 0) {
 			struct net_interface *interface = net_get_interface_ptr(interfaces, MAX_INTERFACES, p->interface_name, 0);
 			if (interface != NULL) {
 				p->interface = interface;
@@ -1240,7 +1240,7 @@ int main (int argc, char **argv) {
 						if (tunnel_conn) {
 							syslog(LOG_INFO, _("(%d) Connection to server closed."), p->seskey);
 						}
-						else if (p->username != NULL) {
+						else if (p->username[0] != 0) {
 							syslog(LOG_INFO, _("(%d) Connection to user %s closed."), p->seskey, p->username);
 						} else {
 							syslog(LOG_INFO, _("(%d) Connection closed."), p->seskey);

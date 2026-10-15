@@ -16,7 +16,7 @@
     with this program; if not, write to the Free Software Foundation, Inc.,
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-#define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #include <libintl.h>
 #include <locale.h>
 #include <string.h>
@@ -309,7 +309,7 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 
 	mndp_hdr = (struct mt_mndp_hdr*)data;
 
-	memcpy(&(packet.header), mndp_hdr, sizeof(mndp_hdr));
+	memcpy(&(packet.header), mndp_hdr, sizeof(struct mt_mndp_hdr));
 
 	p = data + sizeof(struct mt_mndp_hdr);
 

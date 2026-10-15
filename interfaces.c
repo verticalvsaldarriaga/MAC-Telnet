@@ -247,7 +247,7 @@ unsigned short udp_sum_calc(unsigned char *src_addr,unsigned char *dst_addr, uns
 	return (unsigned short) sum;
 }
 
-int net_init_raw_socket(struct net_interface *interface) {
+int net_init_raw_socket(void) {
 	int fd;
 
 #ifdef __linux__

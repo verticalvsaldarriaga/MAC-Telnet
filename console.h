@@ -17,6 +17,6 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 extern int get_terminal_size(unsigned short *width, unsigned short *height);
-extern int raw_term();
-extern int reset_term();
+extern int raw_term(void);
+extern int reset_term(void);
 extern int set_terminal_size(int fd, unsigned short width, unsigned short height);
