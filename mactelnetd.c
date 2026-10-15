@@ -1023,7 +1023,18 @@ int main (int argc, char **argv) {
 				break;
 
 			case 'P':
-				fwdport = atoi(optarg);
+				{
+					/* Hand-rolled parse: atoi() pulls in the glibc 2.38+ C23 strtol symbol */
+					char *c = optarg;
+					fwdport = 0;
+					for (; *c >= '0' && *c <= '9' && fwdport <= 65535; c++) {
+						fwdport = fwdport * 10 + (*c - '0');
+					}
+					if (c == optarg || *c != '\0' || fwdport < 1 || fwdport > 65535) {
+						fprintf(stderr, _("Invalid port: %s\n"), optarg);
+						exit(1);
+					}
+				}
 				break;
 
 			case 'U':
