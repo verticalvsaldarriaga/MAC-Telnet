@@ -51,6 +51,7 @@
   1999-05-03 lpd Original version.
  */
 
+#include <stdint.h>
 #include "md5.h"
 #include <string.h>
 
@@ -161,7 +162,7 @@ md5_process(md5_state_t *pms, const md5_byte_t *data /*[64]*/)
 	     * On little-endian machines, we can process properly aligned
 	     * data without copying it.
 	     */
-	    if (!((data - (const md5_byte_t *)0) & 3)) {
+	    if (!((uintptr_t)data & 3)) {
 		/* data are properly aligned */
 		X = (const md5_word_t *)data;
 	    } else {

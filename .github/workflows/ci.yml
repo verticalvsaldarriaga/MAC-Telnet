@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+        flags: ["-O2", "-O1 -g -fsanitize=address,undefined"]
+    env:
+      CC: ${{ matrix.cc }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (warnings are errors)
+        run: make CFLAGS="${{ matrix.flags }} -Werror"
+      - name: Smoke test
+        run: |
+          ./mactelnet -v
+          ./mactelnetd -v
+      - name: Install to staging dir
+        run: |
+          make install DESTDIR="$PWD/stage"
+          test -x stage/usr/bin/mactelnet
+          test -x stage/usr/sbin/mactelnetd
+          test -f stage/etc/mactelnetd.users
