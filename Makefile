@@ -1,71 +1,77 @@
+CC       ?= gcc
+CFLAGS   ?= -O2
+# Required flags are kept separate so overriding CFLAGS does not drop them.
+override CFLAGS += -std=gnu11 -Wall -Wextra -Wno-unused-parameter -MMD -MP
 
-CC?=gcc
-CFLAGS?=-O2 -std=gnu11 -Wextra -Wno-unused-parameter
+PREFIX     ?= /usr
+BINDIR     ?= $(PREFIX)/bin
+SBINDIR    ?= $(PREFIX)/sbin
+MANDIR     ?= $(PREFIX)/share/man
+SYSCONFDIR ?= /etc
+USERSFILE  ?= $(SYSCONFDIR)/mactelnetd.users
 
 # Run this with make LIBS=-lrt if you want to compile on kfreebsd
 
-all: macping mndp mactelnet mactelnetd
+BINS  = macping mndp mactelnet mactelnetd
+OBJS  = protocol.o interfaces.o md5.o console.o users.o mndp_client.o
 
-clean: distclean
+.PHONY: all clean distclean potclean dist install install-strip install-docs pot
 
-distclean:
-	rm -f mactelnet macping mactelnetd mndp
-	rm -f *.o
+all: $(BINS)
+
+# Link rules
+mactelnet: mactelnet.o protocol.o console.o interfaces.o users.o md5.o mndp_client.o
+mactelnetd: mactelnetd.o protocol.o console.o interfaces.o users.o md5.o
+mndp: mndp.o protocol.o
+macping: macping.o interfaces.o protocol.o
+
+$(BINS):
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+# The credentials file path is compiled into users.o
+users.o: CPPFLAGS += -DUSERSFILE='"$(USERSFILE)"'
+
+# mactelnet embeds the MNDP discovery code from mndp.c
+mndp_client.o: mndp.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DFROM_MACTELNET -c -o $@ $<
+
+%.o: %.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+clean:
+	rm -f $(BINS) *.o *.d
+
+distclean: clean
 
 potclean:
 	rm -f po/*.pot
 
 dist: distclean potclean pot
 
-install: all install-docs
-	install -d $(DESTDIR)/usr/bin
-	install mndp $(DESTDIR)/usr/bin/
-	install macping $(DESTDIR)/usr/bin/
-	install mactelnet $(DESTDIR)/usr/bin/
-	install -d $(DESTDIR)/usr/sbin
-	install -o root mactelnetd $(DESTDIR)/usr/sbin/
-	install -d $(DESTDIR)/etc
-	install -m 600 -o root config/mactelnetd.users $(DESTDIR)/etc/
+# Ownership is left to the caller; packagers use DESTDIR, root installs
+# can pass INSTALL_OWNER="-o root".
+INSTALL_OWNER ?=
 
-install-strip: all install-docs
-	install -d $(DESTDIR)/usr/bin
-	install -s mndp $(DESTDIR)/usr/bin/
-	install -s macping $(DESTDIR)/usr/bin/
-	install -s mactelnet $(DESTDIR)/usr/bin/
-	install -d $(DESTDIR)/usr/sbin
-	install -s -o root mactelnetd $(DESTDIR)/usr/sbin/
-	install -d $(DESTDIR)/etc
-	install -m 600 -o root config/mactelnetd.users $(DESTDIR)/etc/
+install: all install-docs
+	install -d $(DESTDIR)$(BINDIR) $(DESTDIR)$(SBINDIR) $(DESTDIR)$(SYSCONFDIR)
+	install $(INSTALL_STRIP) mndp macping mactelnet $(DESTDIR)$(BINDIR)/
+	install $(INSTALL_STRIP) $(INSTALL_OWNER) mactelnetd $(DESTDIR)$(SBINDIR)/
+	@if [ -e "$(DESTDIR)$(USERSFILE)" ]; then \
+		echo "keeping existing $(DESTDIR)$(USERSFILE)"; \
+	else \
+		install -m 600 $(INSTALL_OWNER) config/mactelnetd.users $(DESTDIR)$(USERSFILE); \
+	fi
+
+install-strip:
+	$(MAKE) install INSTALL_STRIP=-s
 
 install-docs:
-	install -d $(DESTDIR)/usr/share/man/man1/
-	install docs/*.1 $(DESTDIR)/usr/share/man/man1/
+	install -d $(DESTDIR)$(MANDIR)/man1/
+	install -m 644 docs/*.1 $(DESTDIR)$(MANDIR)/man1/
 
 pot: po/mactelnet.pot
 
 po/mactelnet.pot: *.c
 	xgettext --package-name=mactelnet --msgid-bugs-address=haakon.nessjoen@gmail.com -d mactelnet -C -c_ -k_ -kgettext_noop *.c -o po/mactelnet.pot
-	
-users.o: users.c users.h
-	${CC} -Wall ${CFLAGS} -DUSERSFILE='"/etc/mactelnetd.users"' -c users.c
 
-protocol.o: protocol.c protocol.h
-	${CC} -Wall ${CFLAGS} -c protocol.c
-
-interfaces.o: interfaces.c interfaces.h
-	${CC} -Wall ${CFLAGS} -c interfaces.c
-
-md5.o: md5.c md5.h
-	${CC} -Wall ${CFLAGS} -c md5.c
-
-mactelnet: config.h mactelnet.c mactelnet.h protocol.o console.c console.h interfaces.o users.o users.h md5.o mndp.c
-	${CC} -Wall ${CFLAGS} ${LDFLAGS} -o mactelnet mactelnet.c protocol.o console.c interfaces.o users.o md5.o -DFROM_MACTELNET mndp.c ${LIBS}
-
-mactelnetd: config.h mactelnetd.c protocol.o interfaces.o console.c console.h users.o users.h md5.o
-	${CC} -Wall ${CFLAGS} ${LDFLAGS} -o mactelnetd mactelnetd.c protocol.o console.c interfaces.o users.o md5.o ${LIBS}
-
-mndp: config.h mndp.c protocol.o
-	${CC} -Wall ${CFLAGS} ${LDFLAGS} -o mndp mndp.c protocol.o ${LIBS}
-
-macping: config.h macping.c interfaces.o protocol.o
-	${CC} -Wall ${CFLAGS} ${LDFLAGS} -o macping macping.c interfaces.o protocol.o ${LIBS}
+-include $(wildcard *.d)

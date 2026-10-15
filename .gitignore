@@ -3,3 +3,4 @@ mactelnetd
 macping
 mndp
 *.o
+*.d

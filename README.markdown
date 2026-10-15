@@ -59,6 +59,42 @@ my [GitHub Personal Page](http://aouyar.github.com)
 and [GitHub Profile](https://github.com/aouyar).
 
 
+Building
+--------
+
+Requires a C compiler (GCC or Clang, C11/GNU) and `make`. Linux is the primary 
+target; the BSDs and Mac OS X are supported on a best-effort basis.
+
+    make                       # build mactelnet, mactelnetd, macping, mndp
+    sudo make install          # installs to /usr, config to /etc
+    sudo make install-strip    # same, with stripped binaries
+
+Useful variables: `PREFIX` (default `/usr`), `BINDIR`, `SBINDIR`, `MANDIR`, 
+`SYSCONFDIR` (default `/etc`), `USERSFILE` (compiled-in path of the users 
+file), `DESTDIR` for packaging, and `INSTALL_OWNER="-o root"` to set 
+ownership on install. An existing users file is never overwritten.
+Use `make LIBS=-lrt` on kFreeBSD.
+
+Without `-n`, the programs use broadcast UDP; with `-n` they use raw sockets 
+and need root (or `CAP_NET_RAW`). The standard-mode daemon needs root to 
+manage login sessions; in forwarding mode (`-S`) it can run unprivileged 
+unless `-n` is used (see `-U` to drop privileges after setup).
+
+
+Quick Start
+-----------
+
+    mndp                          # discover MikroTik / MAC-Telnet devices
+    macping 00:11:22:33:44:55     # check reachability by MAC address
+    mactelnet 00:11:22:33:44:55   # classic MAC-Telnet session
+    mactelnet -S 00:11:22:33:44:55 -- -l user   # MAC-SSH via forwarding
+
+Run the daemon in standard mode with `mactelnetd` (users listed in 
+`/etc/mactelnetd.users`) or in forwarding mode with `mactelnetd -S` 
+(authentication is delegated to `sshd`). See the man pages (`docs/`) and
+`mactelnet -h` / `mactelnetd -h` for all options.
+
+
 Documentation
 -------------
 
@@ -71,13 +107,13 @@ for the official documentation of the project.
 The documentation for the forked version with the experimental features is 
 published at [MAC-Telnet Project Web Page](http://aouyar.github.com/MAC-Telnet/)
 by [Ali Onur Uyar](http://aouyar.github.com) 
-([aouyar @ GitHub] (https://github.com/aouyar)).
+([aouyar @ GitHub](https://github.com/aouyar)).
 
 
 Licensing
 ---------
 
-_PyMunin_ is copyrighted free software made available under the terms of the 
-_GPL License Version 3_ or later.
+_MAC-Telnet_ is copyrighted free software made available under the terms of the 
+_GPL License Version 2_ or later.
 
 See the _LICENSE_ file that acompanies the code for full licensing information.
