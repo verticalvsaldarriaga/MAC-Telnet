@@ -1,0 +1,18 @@
+[Unit]
+Description=MAC-SSH server (MAC-Telnet forwarding to local SSH)
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+ExecStart=/usr/sbin/mactelnetd -S -f
+Restart=on-failure
+RestartSec=2s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

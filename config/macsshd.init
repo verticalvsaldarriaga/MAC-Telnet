@@ -17,4 +17,4 @@ pre-start script
     test -x /usr/sbin/mactelnetd || { stop; exit 0; }
 end script
 
-exec su - nobody - c "/usr/sbin/mactelnetd -S -f"
+exec su -s /bin/sh nobody -c '/usr/sbin/mactelnetd -S -f'

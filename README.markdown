@@ -75,6 +75,19 @@ file), `DESTDIR` for packaging, and `INSTALL_OWNER="-o root"` to set
 ownership on install. An existing users file is never overwritten.
 Use `make LIBS=-lrt` on kFreeBSD.
 
+Linux installer scripts are also provided. Run the general installer as root
+to install build dependencies and the OpenSSH server package, build the
+programs, and enable the MAC-SSH service on systemd systems:
+
+    sudo ./scripts/install-linux.sh
+
+Use `./scripts/install-arch.sh` on Arch Linux or
+`./scripts/install-raspbian.sh` on Raspberry Pi OS / Debian. Pass `--no-deps`
+when the compiler, `make`, and OpenSSH server are already installed. The
+`macsshd` service forwards MAC-SSH sessions to `127.0.0.1:22`; make sure the
+SSH server is configured to listen there. The installer does not enable the
+SSH server itself.
+
 Without `-n`, the programs use broadcast UDP; with `-n` they use raw sockets 
 and need root (or `CAP_NET_RAW`). The standard-mode daemon needs root to 
 manage login sessions; in forwarding mode (`-S`) it can run unprivileged 

@@ -92,6 +92,27 @@ static struct in_addr destip;
 static int sourceport;
 static int fwdport = MT_TUNNEL_SERVER_PORT;
 
+/* TCP is a byte stream: send() may complete only part of a buffer. */
+static int send_all(int fd, const void *buffer, size_t length) {
+	const unsigned char *data = buffer;
+	size_t sent = 0;
+
+	while (sent < length) {
+		ssize_t result = send(fd, data + sent, length - sent, 0);
+		if (result > 0) {
+			sent += (size_t)result;
+		} else if (result < 0 && errno == EINTR) {
+			continue;
+		} else {
+			if (result == 0) {
+				errno = EPIPE;
+			}
+			return -1;
+		}
+	}
+	return 0;
+}
+
 static time_t last_mndp_time = 0;
 
 /* Protocol data direction */
@@ -688,7 +709,7 @@ static void handle_data_packet(struct mt_connection *curconn, struct mt_mactelne
 				}
 			}
 			if (tunnel_conn && curconn->state == STATE_ACTIVE && curconn->fwdfd != -1) {
-				if (send(curconn->fwdfd, cpkt.data, cpkt.length, 0) <= 0) {
+				if (send_all(curconn->fwdfd, cpkt.data, cpkt.length) < 0) {
 					syslog(LOG_INFO, "(%d) Connection from tunnel to server port closed.", curconn->seskey);
 					abort_connection(curconn, pkthdr, _("Server port disconnection.\r\n"));
 					return;
@@ -1004,7 +1025,7 @@ int main (int argc, char **argv) {
 	bindtextdomain("mactelnet","/usr/share/locale");
 	textdomain("mactelnet");
 
-	while ((c = getopt(argc, argv, "fnvh?SP:U:")) != -1) {
+	while ((c = getopt(argc, argv, "fnvh?SFP:U:")) != -1) {
 		switch (c) {
 			case 'f':
 				foreground = 1;

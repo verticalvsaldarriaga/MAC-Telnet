@@ -109,6 +109,27 @@ static char ssh_path[512];
 /* SSH additional args. */
 static char **ssh_argv;
 
+/* TCP is a byte stream: send() may complete only part of a buffer. */
+static int send_all(int fd, const void *buffer, size_t length) {
+	const unsigned char *data = buffer;
+	size_t sent = 0;
+
+	while (sent < length) {
+		ssize_t result = send(fd, data + sent, length - sent, 0);
+		if (result > 0) {
+			sent += (size_t)result;
+		} else if (result < 0 && errno == EINTR) {
+			continue;
+		} else {
+			if (result == 0) {
+				errno = EPIPE;
+			}
+			return -1;
+		}
+	}
+	return 0;
+}
+
 
 static int handle_packet(unsigned char *data, int data_len);
 
@@ -302,7 +323,7 @@ static int handle_packet(unsigned char *data, int data_len) {
 			/* If the (remaining) data did not have a control-packet magic byte sequence,
 			   the data is raw terminal data to be tunneled to local SSH Client. */
 			else if (tunnel_conn && cpkt.cptype == MT_CPTYPE_PLAINDATA) {
-				if (send(fwdfd, cpkt.data, cpkt.length, 0) < 0) {
+				if (send_all(fwdfd, cpkt.data, cpkt.length) < 0) {
 					fprintf(stderr, _("Terminal client disconnected.\n"));
 					/* exit */
 					running = 0;
