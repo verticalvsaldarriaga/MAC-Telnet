@@ -136,6 +136,7 @@ struct mt_connection {
 	unsigned short seskey;
 	unsigned int incounter;
 	unsigned int outcounter;
+	unsigned char have_incounter;
 	time_t lastdata;
 
 	int terminal_mode;
@@ -804,7 +805,7 @@ static void handle_packet(unsigned char *data, int data_len, const struct sockad
 				break;
 			}
 
-			if (pkthdr.counter <= curconn->outcounter) {
+			if (pkthdr.counter == curconn->outcounter) {
 				curconn->wait_for_ack = 0;
 			}
 
@@ -829,8 +830,9 @@ static void handle_packet(unsigned char *data, int data_len, const struct sockad
 
 			/* Accept first packet, and all packets greater than incounter, and if counter has
 			wrapped around. */
-			if (curconn->incounter == 0 || pkthdr.counter > curconn->incounter || (curconn->incounter - pkthdr.counter) > 16777216) {
+			if (!curconn->have_incounter || pkthdr.counter > curconn->incounter || (curconn->incounter - pkthdr.counter) > 16777216) {
 				curconn->incounter = pkthdr.counter;
+				curconn->have_incounter = 1;
 			} else {
 				/* Ignore double or old packets */
 				return;

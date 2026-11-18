@@ -63,6 +63,7 @@ static int fwdfd = 0;
 
 static unsigned int outcounter = 0;
 static unsigned int incounter = 0;
+static unsigned char have_incounter = 0;
 static int sessionkey = 0;
 static int running = 1;
 
@@ -139,6 +140,11 @@ static void print_version() {
 
 static int send_udp(struct mt_packet *packet, int retransmit) {
 	int sent_bytes;
+	struct mt_mactelnet_hdr txhdr;
+	unsigned int expected_ack;
+
+	parse_packet(packet->data, &txhdr);
+	expected_ack = txhdr.counter + (unsigned int)(packet->size - MT_HEADER_LEN);
 
 	/* Clear keepalive counter */
 	keepalive_counter = 0;
@@ -186,7 +192,11 @@ static int send_udp(struct mt_packet *packet, int retransmit) {
 
 				/* Handle incoming packets, waiting for an ack */
 				if (result > 0 && handle_packet(buff, result) == MT_PTYPE_ACK) {
-					return sent_bytes;
+					struct mt_mactelnet_hdr ackhdr;
+					parse_packet(buff, &ackhdr);
+					if (ackhdr.counter == expected_ack) {
+						return sent_bytes;
+					}
 				}
 			}
 
@@ -289,8 +299,9 @@ static int handle_packet(unsigned char *data, int data_len) {
 
 		/* Accept first packet, and all packets greater than incounter, and if counter has
 		wrapped around. */
-		if (incounter == 0 || pkthdr.counter > incounter || (incounter - pkthdr.counter) > 65535) {
+		if (!have_incounter || pkthdr.counter > incounter || (incounter - pkthdr.counter) > 65535) {
 			incounter = pkthdr.counter;
+			have_incounter = 1;
 		} else {
 			/* Ignore double or old packets */
 			return -1;
