@@ -265,9 +265,10 @@ int mndp_init_packet(struct mt_packet *packet, unsigned char version, unsigned c
 	header->ttl = ttl;
 	header->cksum = 0;
 	
-	packet->size = sizeof(header);
+	/* header is a pointer; use the actual wire header size. */
+	packet->size = sizeof(*header);
 	
-	return sizeof(header);
+	return sizeof(*header);
 }
 
 int mndp_add_attribute(struct mt_packet *packet, enum mt_mndp_attrtype attrtype, void *attrdata, unsigned short data_len) {
@@ -299,9 +300,11 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 	const unsigned char *p;
 	static struct mt_mndp_info packet;
 	struct mt_mndp_hdr *mndp_hdr;
+	int have_address = 0;
+	static const unsigned char zero_address[ETH_ALEN] = {0};
 
-	/* Check for valid packet length */
-	if (packet_len < 18) {
+	/* Require a complete header and at least one attribute header. */
+	if (packet_len < (int)(sizeof(struct mt_mndp_hdr) + 4)) {
 		return NULL;
 	}
 
@@ -314,18 +317,22 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 	p = data + sizeof(struct mt_mndp_hdr);
 
 	while(p < data + packet_len) {
-		unsigned short type, len;
+		unsigned short type, len, attr_len;
+		if ((size_t)(data + packet_len - p) < 4) {
+			break;
+		}
 
 		memcpy(&type, p, 2);
 		memcpy(&len, p + 2, 2);
 
 		type = ntohs(type);
 		len = ntohs(len);
+		attr_len = len;
 
 		p += 4;
 
 		/* Check if len is invalid */
-		if (p + len > data + packet_len) {
+		if (len > (size_t)(data + packet_len - p)) {
 			break;
 		}
 
@@ -333,12 +340,13 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 			case MT_MNDPTYPE_ADDRESS:
 				if (len >= ETH_ALEN) {
 					memcpy(packet.address, p, ETH_ALEN);
+					have_address = 1;
 				}
 				break;
 
 			case MT_MNDPTYPE_IDENTITY:
-				if (len > MT_MNDP_MAX_STRING_LENGTH) {
-					len = MT_MNDP_MAX_STRING_LENGTH;
+				if (len >= sizeof(packet.identity)) {
+					len = sizeof(packet.identity) - 1;
 				}
 
 				memcpy(packet.identity, p, len);
@@ -346,8 +354,8 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 				break;
 
 			case MT_MNDPTYPE_PLATFORM:
-				if (len > MT_MNDP_MAX_STRING_LENGTH) {
-					len = MT_MNDP_MAX_STRING_LENGTH;
+				if (len >= sizeof(packet.platform)) {
+					len = sizeof(packet.platform) - 1;
 				}
 
 				memcpy(packet.platform, p, len);
@@ -355,8 +363,8 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 				break;
 
 			case MT_MNDPTYPE_VERSION:
-				if (len > MT_MNDP_MAX_STRING_LENGTH) {
-					len = MT_MNDP_MAX_STRING_LENGTH;
+				if (len >= sizeof(packet.version)) {
+					len = sizeof(packet.version) - 1;
 				}
 
 				memcpy(packet.version, p, len);
@@ -364,14 +372,16 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 				break;
 
 			case MT_MNDPTYPE_TIMESTAMP:
-				memcpy(&(packet.uptime), p, 4);
-				/* Seems like ping uptime is transmitted as little endian? */
-				packet.uptime = le32toh(packet.uptime);
+				if (len >= 4) {
+					memcpy(&(packet.uptime), p, 4);
+					/* Seems like ping uptime is transmitted as little endian? */
+					packet.uptime = le32toh(packet.uptime);
+				}
 				break;
 
 			case MT_MNDPTYPE_HARDWARE:
-				if (len > MT_MNDP_MAX_STRING_LENGTH) {
-					len = MT_MNDP_MAX_STRING_LENGTH;
+				if (len >= sizeof(packet.hardware)) {
+					len = sizeof(packet.hardware) - 1;
 				}
 
 				memcpy(packet.hardware, p, len);
@@ -379,8 +389,8 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 				break;
 
 			case MT_MNDPTYPE_SOFTID:
-				if (len > MT_MNDP_MAX_STRING_LENGTH) {
-					len = MT_MNDP_MAX_STRING_LENGTH;
+				if (len >= sizeof(packet.softid)) {
+					len = sizeof(packet.softid) - 1;
 				}
 				
 				memcpy(packet.softid, p, len);
@@ -392,9 +402,12 @@ struct mt_mndp_info *parse_mndp(const unsigned char *data, const int packet_len)
 			*/
 		}
 		
-		p += len;
+		p += attr_len;
 	}
 	
+	if (!have_address || memcmp(packet.address, zero_address, ETH_ALEN) == 0) {
+		return NULL;
+	}
 	return &packet;
 }
 
