@@ -56,6 +56,7 @@ if [[ -d /run/systemd/system ]] && command -v systemctl >/dev/null 2>&1; then
 	install -m 0644 config/macsshd.service /etc/systemd/system/macsshd.service
 	systemctl daemon-reload
 	systemctl enable --now macsshd.service
+	systemctl restart macsshd.service
 	cat <<'EOF'
 Installed and started macsshd.service. It forwards MAC-SSH sessions to
 127.0.0.1:22. Ensure the system SSH server is installed and listening there.
